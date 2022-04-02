@@ -44,27 +44,31 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, UIApplicationDelegate {
 //        secondWindow?.windowLevel = .statusBar
 //        secondWindow?.isHidden = false
         
-        (0...20).map {
-            (title: "Title \($0)", message: "Message \($0) long text message for testing purposes")
-        }
-        .publisher
-        .flatMap(maxPublishers: .max(1), { input -> AnyPublisher<(title: String, message: String?), Never> in
-            let randomDelay = (1...3).randomElement()!
-            let randomDelayStride = RunLoop.SchedulerTimeType.Stride(Double(randomDelay))
-            return Just(input)
-                .delay(for: randomDelayStride, scheduler: RunLoop.main)
-                .eraseToAnyPublisher()
-        })
-        .sink { log in
-            EventLog.send(title: log.title, message: log.message)
-        }
-        .store(in: &disposeBag)
+        if #available(iOS 15, *) {
         
-        EventLog.showLogs(on: windowScene)
-        
-        EventLog.shared.eventLogPublisher.sink { eventData in
-            print(eventData)
-        }.store(in: &disposeBag)
+            (0...20).map {
+                (title: "Title \($0)", message: "Message \($0) long text message for testing a purposes")
+            }
+            .publisher
+            .flatMap(maxPublishers: .max(1), { input -> AnyPublisher<(title: String, message: String?), Never> in
+                let randomDelay = 0.5//(1...3).randomElement()!
+                let randomDelayStride = RunLoop.SchedulerTimeType.Stride(Double(randomDelay))
+                return Just(input)
+                    .delay(for: randomDelayStride, scheduler: RunLoop.main)
+                    .eraseToAnyPublisher()
+            })
+            .sink { log in
+                EventLog.send(title: log.title, message: log.message, type: EventLogType.allCases.randomElement()!)
+            }
+            .store(in: &disposeBag)
+            
+            EventLog.showLogs(on: windowScene)
+            
+            EventLog.shared.eventLogPublisher.sink { eventData in
+                //print(eventData)
+            }.store(in: &disposeBag)
+            
+        }
 
 //        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
 //            print("window: \(EventLog.shared.window)")

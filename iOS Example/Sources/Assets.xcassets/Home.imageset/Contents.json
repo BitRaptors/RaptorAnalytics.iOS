@@ -3,6 +3,16 @@
     {
       "filename" : "Home-Day.svg",
       "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "Home-Night.svg",
+      "idiom" : "universal"
     }
   ],
   "info" : {
