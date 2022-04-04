@@ -15,7 +15,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, UIApplicationDelegate {
 
     var disposeBag = Set<AnyCancellable>()
     var window: UIWindow?
-    var secondWindow: UIWindow?
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         return true
@@ -31,47 +30,72 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, UIApplicationDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         let rootView = ContentView()
-
         let window = UIWindow(windowScene: windowScene)
         window.rootViewController = UIHostingController(rootView: rootView)
         self.window = window
         window.makeKeyAndVisible()
         
-//        secondWindow = UIWindow(windowScene: windowScene)
-//        secondWindow?.frame = CGRect(x: 0, y: 40, width: UIScreen.main.bounds.size.width, height: 100)
-//        let someView = Text("I am on top of everything")
-//        secondWindow?.rootViewController = UIHostingController(rootView: someView)
-//        secondWindow?.windowLevel = .statusBar
-//        secondWindow?.isHidden = false
-        
         if #available(iOS 15, *) {
         
-            (0...20).map {
-                (title: "Title \($0)", message: "Message \($0) long text message for testing a purposes")
+            ///Message test
+            
+//            (0...20).map {
+//                (title: "Title \($0)", message: "Message \($0) long text message for testing a purposes")
+//            }
+//            .publisher
+//            .flatMap(maxPublishers: .max(1), { input -> AnyPublisher<(title: String, message: String?), Never> in
+//                let randomDelay = 0.5//(1...3).randomElement()!
+//                let randomDelayStride = RunLoop.SchedulerTimeType.Stride(Double(randomDelay))
+//                return Just(input)
+//                    .delay(for: randomDelayStride, scheduler: RunLoop.main)
+//                    .eraseToAnyPublisher()
+//            })
+//            .sink { log in
+//                EventLog.send(title: log.title, message: log.message, type: EventLogType.allCases.randomElement()!)
+//            }
+//            .store(in: &disposeBag)
+            
+            /// Param test
+            
+            (0...20).map { id -> (title: String, parameters: [String: Any]) in
+                (title: "Title \(id) long title long long title long title long long long title", parameters: [
+                    "type": "House",
+                    "width": 200,
+                    "color": UIColor.red,
+                    "height": 100.0,
+                    "timeOfPurchase": Date(),
+                    "issue": URLError.cannotLoadFromNetwork,
+                    "rooms": ["hall", "kitchen", "diningroom", "office", "garage", "bathroom"],
+                    "roomProperties": [
+                        [
+                            "name": "hall",
+                            "size": 4
+                        ],
+                        [
+                            "name": "kitchen",
+                            "size": 3
+                        ],
+                        [
+                            "name": "diningroom",
+                            "size": 5
+                        ]
+                    ]])
             }
             .publisher
-            .flatMap(maxPublishers: .max(1), { input -> AnyPublisher<(title: String, message: String?), Never> in
-                let randomDelay = 0.5//(1...3).randomElement()!
+            .flatMap(maxPublishers: .max(1), { input -> AnyPublisher<(title: String, parameters: [String: Any]), Never> in
+                let randomDelay = (1...7).randomElement()!
                 let randomDelayStride = RunLoop.SchedulerTimeType.Stride(Double(randomDelay))
                 return Just(input)
                     .delay(for: randomDelayStride, scheduler: RunLoop.main)
                     .eraseToAnyPublisher()
             })
             .sink { log in
-                EventLog.send(title: log.title, message: log.message, type: EventLogType.allCases.randomElement()!)
+                EventLog.send(title: log.title, parameters: log.parameters, type: EventLogType.allCases.randomElement()!)
             }
             .store(in: &disposeBag)
             
             EventLog.showLogs(on: windowScene)
             
-            EventLog.shared.eventLogPublisher.sink { eventData in
-                //print(eventData)
-            }.store(in: &disposeBag)
-            
         }
-
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-//            print("window: \(EventLog.shared.window)")
-//        }
     }
 }
