@@ -9,25 +9,43 @@ import Foundation
 import SwiftUI
 import Combine
 
+internal enum EventListState: Equatable {
+    case hidden
+    case closed
+    case open
+}
+
+@available(iOS 15.0, *)
+internal class EventListViewModel: ObservableObject {
+    @Published var state: EventListState = .hidden
+    
+    internal static var shared: EventListViewModel = EventListViewModel()
+    
+    internal func hide() {
+        state = .hidden
+    }
+}
+
 @available(iOS 15.0, *)
 internal struct EventLogList: View {
     
+    private static let bottomSpacerId = UUID()
     private var eventPublisher = EventLog.shared.eventLogPublisher
     
     private let normalHeight: CGFloat = 40
     private let messageHeight: CGFloat = 80
-    private let bottomSpacerId = UUID()
     
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var viewModel: EventListViewModel = .shared
     
     @State private var events: [EventLogData] = []
     @State private var selectedEvent: EventLogData? = nil
-    
-    @State private var listClosed: Bool = true
     @State private var sheetPresented: Bool = false
-    @State private var notificationsHidden: Bool = false
-    
     @State private var hideAnimWorkItem: DispatchWorkItem?
+    
+    var state: EventListState {
+        get { viewModel.state }
+    }
     
     public var body: some View {
         ScrollViewReader { scrollReader in
@@ -36,23 +54,22 @@ internal struct EventLogList: View {
                     VStack {
                         Spacer()
                             .frame(minHeight: 0, maxHeight: .infinity)
-                        if !notificationsHidden {
+                        if state != .hidden {
                             LazyVStack {
                                 ForEach(events) { event in
                                     listItem(geoReader: geoReader, event: event)
                                 }
                             }
                         }
-                        if notificationsHidden {
+                        if state == .hidden {
                             VStack {
                                 Button {
                                     withAnimation {
-                                        listClosed = false
-                                        notificationsHidden = false
+                                        viewModel.state = .open
                                     }
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                         withAnimation {
-                                            scrollReader.scrollTo(bottomSpacerId)
+                                            scrollReader.scrollTo(Self.bottomSpacerId)
                                         }
                                     }
                                 } label: {
@@ -72,21 +89,21 @@ internal struct EventLogList: View {
                             .frame(maxWidth: .infinity)
                             .background(Color.clear)
                         }
-                        if !listClosed {
+                        if state != .closed {
                             Spacer(minLength: 40)
-                                .id(bottomSpacerId)
+                                .id(Self.bottomSpacerId)
                         }
                     }
                     .colorScheme(colorScheme)
                     .frame(minHeight: geoReader.size.height)
                 }
                 .animation(.default, value: events)
-                .offset(y: getOffset(geoReader, notificationsHidden: notificationsHidden))
+                .offset(y: getOffset(geoReader))
                 .overlay(alignment: .bottomTrailing) {
-                    if !listClosed {
+                    if state != .closed {
                         Button {
                             withAnimation {
-                                listClosed = true
+                                viewModel.state = .closed
                             }
                             hideNotiTimedEvent(delay: 0)
                         } label: {
@@ -101,9 +118,9 @@ internal struct EventLogList: View {
                         .tappable()
                     }
                 }
-                .background(listClosed ? AnyShapeStyle(Color.clear) : AnyShapeStyle(.ultraThinMaterial))
+                .background(state == .open ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.clear))
                 .colorScheme(.dark)
-                .tappable(when: !listClosed)
+                .tappable(when: state != .closed)
             }
             .onChange(of: events.count) { _ in
                 withAnimation {
@@ -112,7 +129,9 @@ internal struct EventLogList: View {
             }
             .onReceive(eventPublisher) { eventLogs in
                 events = eventLogs
-                notificationsHidden = false
+                if state == .hidden {
+                    viewModel.state = .closed
+                }
                 hideNotiTimedEvent(delay: 5)
             }
         }
@@ -128,9 +147,9 @@ internal struct EventLogList: View {
         hideAnimWorkItem?.cancel()
         
         let newHideAnimWorkItem = DispatchWorkItem {
-            if listClosed {
+            if state == .closed {
                 withAnimation {
-                    notificationsHidden = true
+                    viewModel.hide()
                 }
             }
         }
@@ -141,11 +160,11 @@ internal struct EventLogList: View {
                                       execute: newHideAnimWorkItem)
     }
     
-    private func getOffset(_ geoReader: GeometryProxy, notificationsHidden: Bool) -> CGFloat {
-        if notificationsHidden {
-            return -geoReader.size.height + 15
+    private func getOffset(_ geoReader: GeometryProxy) -> CGFloat {
+        if state == .hidden {
+            return -geoReader.size.height + geoReader.safeAreaInsets.top + 10
         }
-        return listClosed ? -geoReader.size.height + heightForType(events.last?.type ?? .message) : 0
+        return state == .closed ? -geoReader.size.height + heightForType(events.last?.type ?? .message) : 0
     }
     
     func heightForType(_ type: EventLogType) -> CGFloat {
@@ -179,11 +198,10 @@ internal struct EventLogList: View {
         .background(.thinMaterial)
         .cornerRadius(16)
         .padding([.leading, .trailing], 16)
-        .id(event.id)
         .onTapGesture {
-            if listClosed {
+            if state == .closed {
                 withAnimation {
-                    listClosed = false
+                    viewModel.state = .open
                 }
             } else {
                 selectedEvent = event

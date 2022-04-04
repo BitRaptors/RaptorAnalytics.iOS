@@ -83,7 +83,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, UIApplicationDelegate {
             }
             .publisher
             .flatMap(maxPublishers: .max(1), { input -> AnyPublisher<(title: String, parameters: [String: Any]), Never> in
-                let randomDelay = (1...7).randomElement()!
+                let randomDelay = 8//(1...7).randomElement()!
                 let randomDelayStride = RunLoop.SchedulerTimeType.Stride(Double(randomDelay))
                 return Just(input)
                     .delay(for: randomDelayStride, scheduler: RunLoop.main)
@@ -95,6 +95,33 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, UIApplicationDelegate {
             .store(in: &disposeBag)
             
             EventLog.showLogs(on: windowScene)
+            
+//            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+//                EventLog.send(title: "Title 0 long title long long title long title long long long title",
+//                              parameters: [
+//                                    "type": "House",
+//                                    "width": 200,
+//                                    "color": UIColor.red,
+//                                    "height": 100.0,
+//                                    "timeOfPurchase": Date(),
+//                                    "issue": URLError.cannotLoadFromNetwork,
+//                                    "rooms": ["hall", "kitchen", "diningroom", "office", "garage", "bathroom"],
+//                                    "roomProperties": [
+//                                        [
+//                                            "name": "hall",
+//                                            "size": 4
+//                                        ],
+//                                        [
+//                                            "name": "kitchen",
+//                                            "size": 3
+//                                        ],
+//                                        [
+//                                            "name": "diningroom",
+//                                            "size": 5
+//                                        ]
+//                                    ]],
+//                              type: EventLogType.allCases.randomElement()!)
+//            }
             
         }
     }

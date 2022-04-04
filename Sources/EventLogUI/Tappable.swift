@@ -13,9 +13,19 @@ internal class TappableUIView: UIView { }
 
 @available(iOS 15.0, *)
 internal extension View {
+    
     @ViewBuilder
     func tappable(when condition: Bool = true) -> some View {
-        self.background(condition ? AnyView(TappableView()) : AnyView(EmptyView()))
+        self.background(tappableBackground(for: condition))
+    }
+    
+    @ViewBuilder
+    private func tappableBackground(for condition: Bool = true) -> some View {
+        if condition {
+            TappableView()
+        } else {
+            EmptyView()
+        }
     }
 }
 
