@@ -100,7 +100,7 @@ internal struct EventLogList: View {
                 .animation(.default, value: events)
                 .offset(y: getOffset(geoReader))
                 .overlay(alignment: .bottomTrailing) {
-                    if state != .closed {
+                    if state == .open {
                         Button {
                             withAnimation {
                                 viewModel.state = .closed
@@ -120,7 +120,7 @@ internal struct EventLogList: View {
                 }
                 .background(state == .open ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.clear))
                 .colorScheme(.dark)
-                .tappable(when: state != .closed)
+                .tappable(when: state == .open)
             }
             .onChange(of: events.count) { _ in
                 withAnimation {

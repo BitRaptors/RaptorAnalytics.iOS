@@ -30,7 +30,7 @@ internal class EventLogUIWindow: UIWindow {
                 return true
             }
         }
-        return true
+        
         return false
     }
     
