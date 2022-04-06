@@ -22,17 +22,16 @@ public class EventLog {
         $eventLogs.eraseToAnyPublisher()
     }
 
-    @Published
-    private var newEvent: EventLogData?
-    internal var onlyEventPublisher: AnyPublisher<EventLogData, Never> {
-        $newEvent.compactMap { $0 }.eraseToAnyPublisher()
+    internal var newEventPublisher: AnyPublisher<EventLogData, Never> {
+        eventLogPublisher.compactMap(\.last)
+            .removeDuplicates()
+            .eraseToAnyPublisher()
     }
 
     private init() { }
 
     public static func send(title: String, message: String? = nil, type: EventLogType = .analytics) {
         Self.shared.eventLogs.append(EventLogData(title: title, message: message, type: type))
-        Self.shared.newEvent = EventLogData(title: title, message: message, type: type)
     }
 
     public static func send(title: String, parameters: [String: Any], type: EventLogType = .analytics) {

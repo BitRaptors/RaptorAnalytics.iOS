@@ -35,7 +35,7 @@ internal class EventListViewModel: ObservableObject {
 internal struct EventLogList: View {
     private static let bottomSpacerId = UUID()
     private var eventPublisher = EventLog.shared.eventLogPublisher
-    private var newEventPublisher = EventLog.shared.onlyEventPublisher
+    private var newEventPublisher = EventLog.shared.newEventPublisher
 
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var viewModel: EventListViewModel = .shared
@@ -73,8 +73,10 @@ internal struct EventLogList: View {
                             Spacer(minLength: 40).id(Self.bottomSpacerId)
                         }
                         .frame(minHeight: geometryReader.size.height)
-                        .animation(.easeInOut, value: events)
-                    }.background(AnyShapeStyle(.ultraThinMaterial))
+                        .animation(.default, value: events)
+                    }
+                    .transition(.move(edge: .top))
+                    .background(AnyShapeStyle(.ultraThinMaterial))
                         .tappable()
                         .overlay(alignment: .bottomTrailing) {
                             Button {
@@ -181,9 +183,13 @@ internal struct EventLogList: View {
                 print(value.translation)
                 switch (value.translation.width, value.translation.height) {
                 case (-100 ... 100, ...0):
-                    viewModel.eventsCurrentlyShown = []
+                    withAnimation {
+                        viewModel.eventsCurrentlyShown = []
+                    }
                 case (-100 ... 100, 0...):
-                    viewModel.state = .open
+                    withAnimation {
+                        viewModel.state = .open
+                    }
                 default: print("no clue")
                 }
             })
