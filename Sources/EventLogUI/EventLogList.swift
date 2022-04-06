@@ -48,6 +48,7 @@ internal struct EventLogList: View {
     var state: EventListState { viewModel.state }
 
     public var body: some View {
+        ScrollViewReader { scReader in
         GeometryReader { geometryReader in
             switch state {
             case .closed:
@@ -55,9 +56,10 @@ internal struct EventLogList: View {
                     ForEach(viewModel.eventsCurrentlyShown) { event in
                         listItem(event: event)
                     }
+                    notiIndicator(scrollReader: scReader)
+                        .opacity(viewModel.eventsCurrentlyShown.count == 0 ? 1 : 0)
                 }.animation(.easeInOut, value: viewModel.eventsCurrentlyShown)
             case .open:
-                ScrollViewReader { scReader in
                     ScrollView(showsIndicators: false) {
                         VStack {
                             Spacer()
@@ -67,6 +69,7 @@ internal struct EventLogList: View {
                                         .id(event.id)
                                 }
                             }
+                            Spacer(minLength: 40).id(Self.bottomSpacerId)
                         }
                         .frame(minHeight: geometryReader.size.height)
                         .animation(.easeInOut, value: events)
@@ -106,6 +109,38 @@ internal struct EventLogList: View {
             EventLogDetail(event: $selectedEvent, presented: $sheetPresented)
         }
     }
+    let bottomSpacerId = "bottomkurva"
+    
+    @ViewBuilder
+    private func notiIndicator(scrollReader:ScrollViewProxy) -> some View {
+        VStack {
+            Button {
+                withAnimation {
+                    viewModel.state = .open
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation {
+                        scrollReader.scrollTo(Self.bottomSpacerId)
+                    }
+                }
+            } label: {
+                Image(systemName: "chevron.compact.down")
+                    .antialiased(true)
+                    .resizable()
+                    .frame(width: 60, height: 10)
+                    .foregroundColor(.white)
+                    .font(Font.system(size: 20, weight: .regular, design: .default))
+            }
+            .buttonStyle(.plain)
+            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 3)
+            .padding(.bottom, 4)
+            .contentShape(Rectangle())
+            .tappable()
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.clear)
+    }
+
 
     @ViewBuilder
     private func listItem(event: EventLogData) -> some View {
