@@ -83,7 +83,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, UIApplicationDelegate {
             }
             .publisher
             .flatMap(maxPublishers: .max(1), { input -> AnyPublisher<(title: String, parameters: [String: Any]), Never> in
-                let randomDelay = (1...7).randomElement()!
+                let randomDelay = 7//(1...7).randomElement()!
                 let randomDelayStride = RunLoop.SchedulerTimeType.Stride(Double(randomDelay))
                 return Just(input)
                     .delay(for: randomDelayStride, scheduler: RunLoop.main)

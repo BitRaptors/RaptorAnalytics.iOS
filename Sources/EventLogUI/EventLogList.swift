@@ -85,40 +85,14 @@ internal struct EventLogList: View {
                 .animation(.default, value: events)
                 .offset(y: getOffset(geoReader))
                 .overlay(alignment: .bottomTrailing) {
-                    if state == .open {
-                        Button {
-                            withAnimation {
-                                viewModel.state = .closed
-                            }
-                            hideNotiTimedEvent(delay: 0)
-                        } label: {
-                            Image(systemName: "arrow.down.right.and.arrow.up.left.circle.fill")
-                                .resizable()
-                                .frame(width: 30, height: 30)
-                                .foregroundColor(.white)
-                        }
-                        .buttonStyle(.plain)
-                        .background(Circle().fill(.gray))
-                        .padding(.trailing, 16)
-                        .tappable()
-                    }
+                    notiCloseButton(geoReader)
                 }
                 .background(state == .open ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.clear))
                 .colorScheme(.dark)
                 .tappable(when: state == .open)
             }
             .onReceive(eventPublisher) { eventLogs in
-                events = eventLogs
-                if recentEvents.count >= 5 {
-                    recentEvents.removeFirst()
-                }
-                if let lastEvent = eventLogs.last {
-                    recentEvents.append(lastEvent)
-                }
-                if state == .hidden {
-                    viewModel.state = .closed
-                }
-                hideNotiTimedEvent(delay: 5)
+                updateNotiList(events: eventLogs)
             }
         }
         .background(Color.clear)
@@ -129,6 +103,7 @@ internal struct EventLogList: View {
         }
     }
     
+    @ViewBuilder
     private func notiIndicator(_ scrollReader: ScrollViewProxy) -> some View {
         VStack {
             Button {
@@ -159,6 +134,42 @@ internal struct EventLogList: View {
         .opacity(state == .hidden ? 1 : 0)
     }
     
+    @ViewBuilder
+    private func notiCloseButton(_ geoReader: GeometryProxy) -> some View {
+        if state == .open {
+            Button {
+                withAnimation {
+                    viewModel.state = .closed
+                }
+                hideNotiTimedEvent(delay: 0)
+            } label: {
+                Image(systemName: "arrow.down.right.and.arrow.up.left.circle.fill")
+                    .resizable()
+                    .frame(width: 30, height: 30)
+                    .foregroundColor(.white)
+            }
+            .buttonStyle(.plain)
+            .background(Circle().fill(.gray))
+            .padding(.trailing, 16)
+            .padding(.bottom, geoReader.safeAreaInsets.bottom > 0 ? 0 : 16)
+            .tappable()
+        }
+    }
+    
+    private func updateNotiList(events: [EventLogData]) {
+        self.events = events
+        if recentEvents.count >= 5 {
+            recentEvents.removeFirst()
+        }
+        if let lastEvent = events.last {
+            recentEvents.append(lastEvent)
+        }
+        if state == .hidden {
+            viewModel.state = .closed
+        }
+        hideNotiTimedEvent(delay: 5)
+    }
+    
     private func hideNotiTimedEvent(delay: Int) {
         hideAnimWorkItem?.cancel()
         
@@ -179,7 +190,8 @@ internal struct EventLogList: View {
     
     private func getOffset(_ geoReader: GeometryProxy) -> CGFloat {
         if state == .hidden {
-            return -geoReader.size.height + geoReader.safeAreaInsets.top + 10
+            let additionalInset = geoReader.safeAreaInsets.bottom > 0 ? 10.0 : 40.0
+            return -geoReader.size.height + geoReader.safeAreaInsets.top + additionalInset
         }
         return 0
         //return state == .closed ? -geoReader.size.height + heightForType(events.last?.type ?? .message) : 0
