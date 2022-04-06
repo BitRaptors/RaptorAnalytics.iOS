@@ -149,7 +149,7 @@ internal struct EventLogList: View {
 
     @ViewBuilder
     private func listItem(event: EventLogData) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: event.type.iconName)
                     .foregroundColor(event.type.tintColor(for: colorScheme))
@@ -160,14 +160,13 @@ internal struct EventLogList: View {
                 Text(event.date, style: .time)
                     .font(Font.system(.footnote, design: .default))
             }
-            .padding(14)
             if let message = event.message, event.type == .message {
                 Text(LocalizedStringKey(message))
                     .font(Font.system(.subheadline, design: .default))
                     .lineLimit(2)
-                    .padding(14)
             }
         }
+        .padding(12)
         .frame(maxWidth: .infinity)
         .background(.thinMaterial)
         .cornerRadius(16)
