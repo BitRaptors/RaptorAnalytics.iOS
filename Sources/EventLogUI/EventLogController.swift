@@ -25,5 +25,4 @@ internal class EventLogController: UIHostingController<EventLogList> {
         super.viewDidLoad()
         view.backgroundColor = .clear
     }
-    
 }

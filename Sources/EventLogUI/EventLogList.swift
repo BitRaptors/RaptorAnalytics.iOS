@@ -1,99 +1,114 @@
 //
 //  File.swift
-//  
+//
 //
 //  Created by Vekety Robin on 2022. 04. 04..
 //
 
+import Combine
 import Foundation
 import SwiftUI
-import Combine
 
 internal enum EventListState: Equatable {
-    case hidden
     case closed
     case open
 }
 
 @available(iOS 15.0, *)
 internal class EventListViewModel: ObservableObject {
-    @Published var state: EventListState = .hidden
-    
+    @Published var state: EventListState = .closed
+
     internal static var shared: EventListViewModel = EventListViewModel()
-    
-    internal func hide() {
-        state = .hidden
+
+    @Published var eventsCurrentlyShown: [EventLogData] = []
+
+    func hideEvent(event: EventLogData) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            self.eventsCurrentlyShown.removeAll { data in
+                data.id == event.id
+            }
+        }
     }
 }
 
 @available(iOS 15.0, *)
 internal struct EventLogList: View {
-    
-    private static let bottomSpacerId = "afshjgasjhgfajs"
+    private static let bottomSpacerId = UUID()
     private var eventPublisher = EventLog.shared.eventLogPublisher
-    
-    private let normalHeight: CGFloat = 40
-    private let messageHeight: CGFloat = 80
-    
+    private var newEventPublisher = EventLog.shared.newEventPublisher
+
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var viewModel: EventListViewModel = .shared
-    
+
     @State private var events: [EventLogData] = []
-    @State private var recentEvents: [EventLogData] = []
     @State private var selectedEvent: EventLogData? = nil
     @State private var sheetPresented: Bool = false
     @State private var hideAnimWorkItem: DispatchWorkItem?
-    
-    var state: EventListState {
-        get { viewModel.state }
-    }
-    
+
+    var state: EventListState { viewModel.state }
+
     public var body: some View {
-        ScrollViewReader { scrollReader in
-            GeometryReader { geoReader in
-                ScrollView(showsIndicators: false) {
+        ScrollViewReader { scReader in
+            GeometryReader { geometryReader in
+                switch state {
+                case .closed:
                     VStack {
-                        
-                        if state != .closed {
+                        ForEach(viewModel.eventsCurrentlyShown) { event in
+                            listItem(event: event)
+                        }
+                        notiIndicator(scrollReader: scReader)
+                            .opacity(viewModel.eventsCurrentlyShown.count == 0 ? 1 : 0)
+                    }.animation(.easeInOut, value: viewModel.eventsCurrentlyShown)
+                case .open:
+                    ScrollView(showsIndicators: false) {
+                        VStack {
                             Spacer()
                                 .frame(minHeight: 0, maxHeight: .infinity)
-                        }
-                        
-                        if state == .closed {
-                            LazyVStack {
-                                ForEach(recentEvents) { event in
-                                    listItem(geoReader: geoReader, event: event)
-                                }
-                            }
-                        }
-                        
-                        if state == .open {
                             LazyVStack {
                                 ForEach(events) { event in
-                                    listItem(geoReader: geoReader, event: event)
+                                    listItem(event: event)
+                                        .id(event.id)
+                                }
+                            }
+                            Spacer(minLength: 40).id(Self.bottomSpacerId)
+                        }
+                        .frame(minHeight: geometryReader.size.height)
+                        .animation(.default, value: events)
+                    }
+                    .transition(.move(edge: .top))
+                    .background(AnyShapeStyle(.ultraThinMaterial))
+                        .tappable()
+                        .overlay(alignment: .bottomTrailing) {
+                            Button {
+                                withAnimation {
+                                    viewModel.state = .closed
+                                }
+                            } label: {
+                                Image(systemName: "arrow.down.right.and.arrow.up.left.circle.fill")
+                                    .resizable()
+                                    .frame(width: 30, height: 30)
+                                    .foregroundColor(.white)
+                            }
+                            .buttonStyle(.plain)
+                            .background(Circle().fill(.gray))
+                            .padding(.trailing, 16)
+                            .tappable()
+                        }
+                        .onReceive(eventPublisher) { eventLogs in
+                            events = eventLogs
+                            if let log = eventLogs.last {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    withAnimation {
+                                        scReader.scrollTo(log.id)
+                                    }
                                 }
                             }
                         }
-                        
-                        notiIndicator(scrollReader)
-                        Spacer(minLength: state != .closed ? 40 : 0)
-                            .id(Self.bottomSpacerId)
-                    }
-                    .colorScheme(colorScheme)
-                    .frame(minHeight: geoReader.size.height)
                 }
-                .animation(.default, value: events)
-                .offset(y: getOffset(geoReader))
-                .overlay(alignment: .bottomTrailing) {
-                    notiCloseButton(geoReader)
-                }
-                .background(state == .open ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.clear))
-                .colorScheme(.dark)
-                .tappable(when: state == .open)
             }
-            .onReceive(eventPublisher) { eventLogs in
-                updateNotiList(events: eventLogs)
-            }
+        }.onReceive(newEventPublisher) { newEvent in
+            viewModel.eventsCurrentlyShown.append(newEvent)
+            viewModel.hideEvent(event: newEvent)
         }
         .background(Color.clear)
         .fullScreenCover(isPresented: $sheetPresented) {
@@ -102,9 +117,11 @@ internal struct EventLogList: View {
             EventLogDetail(event: $selectedEvent, presented: $sheetPresented)
         }
     }
-    
+
+    let bottomSpacerId = "bottomkurva"
+
     @ViewBuilder
-    private func notiIndicator(_ scrollReader: ScrollViewProxy) -> some View {
+    private func notiIndicator(scrollReader: ScrollViewProxy) -> some View {
         VStack {
             Button {
                 withAnimation {
@@ -131,79 +148,11 @@ internal struct EventLogList: View {
         }
         .frame(maxWidth: .infinity)
         .background(Color.clear)
-        .opacity(state == .hidden ? 1 : 0)
     }
-    
+
     @ViewBuilder
-    private func notiCloseButton(_ geoReader: GeometryProxy) -> some View {
-        if state == .open {
-            Button {
-                withAnimation {
-                    viewModel.state = .closed
-                }
-                hideNotiTimedEvent(delay: 0)
-            } label: {
-                Image(systemName: "arrow.down.right.and.arrow.up.left.circle.fill")
-                    .resizable()
-                    .frame(width: 30, height: 30)
-                    .foregroundColor(.white)
-            }
-            .buttonStyle(.plain)
-            .background(Circle().fill(.gray))
-            .padding(.trailing, 16)
-            .padding(.bottom, geoReader.safeAreaInsets.bottom > 0 ? 0 : 16)
-            .tappable()
-        }
-    }
-    
-    private func updateNotiList(events: [EventLogData]) {
-        self.events = events
-        if recentEvents.count >= 5 {
-            recentEvents.removeFirst()
-        }
-        if let lastEvent = events.last {
-            recentEvents.append(lastEvent)
-        }
-        if state == .hidden {
-            viewModel.state = .closed
-        }
-        hideNotiTimedEvent(delay: 5)
-    }
-    
-    private func hideNotiTimedEvent(delay: Int) {
-        hideAnimWorkItem?.cancel()
-        
-        let newHideAnimWorkItem = DispatchWorkItem {
-            if state == .closed {
-                withAnimation {
-                    viewModel.hide()
-                    recentEvents.removeAll()
-                }
-            }
-        }
-        
-        hideAnimWorkItem = newHideAnimWorkItem
-        let deadline = DispatchTime.now().advanced(by: DispatchTimeInterval.seconds(delay))
-        DispatchQueue.main.asyncAfter(deadline: deadline,
-                                      execute: newHideAnimWorkItem)
-    }
-    
-    private func getOffset(_ geoReader: GeometryProxy) -> CGFloat {
-        if state == .hidden {
-            let additionalInset = geoReader.safeAreaInsets.bottom > 0 ? 10.0 : 40.0
-            return -geoReader.size.height + geoReader.safeAreaInsets.top + additionalInset
-        }
-        return 0
-        //return state == .closed ? -geoReader.size.height + heightForType(events.last?.type ?? .message) : 0
-    }
-    
-    func heightForType(_ type: EventLogType) -> CGFloat {
-        return type == .message ? 80 : 40
-    }
-    
-    @ViewBuilder
-    private func listItem(geoReader: GeometryProxy, event: EventLogData) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+    private func listItem(event: EventLogData) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: event.type.iconName)
                     .foregroundColor(event.type.tintColor(for: colorScheme))
@@ -214,16 +163,13 @@ internal struct EventLogList: View {
                 Text(event.date, style: .time)
                     .font(Font.system(.footnote, design: .default))
             }
-            .padding(.horizontal, 12)
             if let message = event.message, event.type == .message {
                 Text(LocalizedStringKey(message))
                     .font(Font.system(.subheadline, design: .default))
                     .lineLimit(2)
-                    .frame(minWidth: geoReader.size.width - 56, alignment: .leading)
-                    .padding(.horizontal, 12)
             }
         }
-        .frame(height: heightForType(event.type))
+        .padding(12)
         .frame(maxWidth: .infinity)
         .background(.thinMaterial)
         .cornerRadius(16)
@@ -232,7 +178,21 @@ internal struct EventLogList: View {
             selectedEvent = event
             sheetPresented = true
         }
+        .gesture(DragGesture(minimumDistance: 3.0, coordinateSpace: .local)
+            .onEnded { value in
+                print(value.translation)
+                switch (value.translation.width, value.translation.height) {
+                case (-100 ... 100, ...0):
+                    withAnimation {
+                        viewModel.eventsCurrentlyShown = []
+                    }
+                case (-100 ... 100, 0...):
+                    withAnimation {
+                        viewModel.state = .open
+                    }
+                default: print("no clue")
+                }
+            })
         .tappable()
     }
-    
 }
