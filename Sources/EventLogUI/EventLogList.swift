@@ -29,7 +29,7 @@ internal class EventListViewModel: ObservableObject {
 @available(iOS 15.0, *)
 internal struct EventLogList: View {
     
-    private static let bottomSpacerId = UUID()
+    private static let bottomSpacerId = "afshjgasjhgfajs"
     private var eventPublisher = EventLog.shared.eventLogPublisher
     
     private let normalHeight: CGFloat = 40
@@ -39,6 +39,7 @@ internal struct EventLogList: View {
     @ObservedObject private var viewModel: EventListViewModel = .shared
     
     @State private var events: [EventLogData] = []
+    @State private var recentEvents: [EventLogData] = []
     @State private var selectedEvent: EventLogData? = nil
     @State private var sheetPresented: Bool = false
     @State private var hideAnimWorkItem: DispatchWorkItem?
@@ -52,47 +53,31 @@ internal struct EventLogList: View {
             GeometryReader { geoReader in
                 ScrollView(showsIndicators: false) {
                     VStack {
-                        Spacer()
-                            .frame(minHeight: 0, maxHeight: .infinity)
-                        if state != .hidden {
+                        
+                        if state != .closed {
+                            Spacer()
+                                .frame(minHeight: 0, maxHeight: .infinity)
+                        }
+                        
+                        if state == .closed {
+                            LazyVStack {
+                                ForEach(recentEvents) { event in
+                                    listItem(geoReader: geoReader, event: event)
+                                }
+                            }
+                        }
+                        
+                        if state == .open {
                             LazyVStack {
                                 ForEach(events) { event in
                                     listItem(geoReader: geoReader, event: event)
                                 }
                             }
                         }
-                        if state == .hidden {
-                            VStack {
-                                Button {
-                                    withAnimation {
-                                        viewModel.state = .open
-                                    }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                        withAnimation {
-                                            scrollReader.scrollTo(Self.bottomSpacerId)
-                                        }
-                                    }
-                                } label: {
-                                    Image(systemName: "chevron.compact.down")
-                                        .antialiased(true)
-                                        .resizable()
-                                        .frame(width: 60, height: 10)
-                                        .foregroundColor(.white)
-                                        .font(Font.system(size: 20, weight: .regular, design: .default))
-                                }
-                                .buttonStyle(.plain)
-                                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 3)
-                                .padding(.bottom, 4)
-                                .contentShape(Rectangle())
-                                .tappable()
-                            }
-                            .frame(maxWidth: .infinity)
-                            .background(Color.clear)
-                        }
-                        if state != .closed {
-                            Spacer(minLength: 40)
-                                .id(Self.bottomSpacerId)
-                        }
+                        
+                        notiIndicator(scrollReader)
+                        Spacer(minLength: state != .closed ? 40 : 0)
+                            .id(Self.bottomSpacerId)
                     }
                     .colorScheme(colorScheme)
                     .frame(minHeight: geoReader.size.height)
@@ -122,13 +107,14 @@ internal struct EventLogList: View {
                 .colorScheme(.dark)
                 .tappable(when: state == .open)
             }
-            .onChange(of: events.count) { _ in
-                withAnimation {
-                    scrollReader.scrollTo(events.last?.id)
-                }
-            }
             .onReceive(eventPublisher) { eventLogs in
                 events = eventLogs
+                if recentEvents.count >= 5 {
+                    recentEvents.removeFirst()
+                }
+                if let lastEvent = eventLogs.last {
+                    recentEvents.append(lastEvent)
+                }
                 if state == .hidden {
                     viewModel.state = .closed
                 }
@@ -143,6 +129,36 @@ internal struct EventLogList: View {
         }
     }
     
+    private func notiIndicator(_ scrollReader: ScrollViewProxy) -> some View {
+        VStack {
+            Button {
+                withAnimation {
+                    viewModel.state = .open
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation {
+                        scrollReader.scrollTo(Self.bottomSpacerId)
+                    }
+                }
+            } label: {
+                Image(systemName: "chevron.compact.down")
+                    .antialiased(true)
+                    .resizable()
+                    .frame(width: 60, height: 10)
+                    .foregroundColor(.white)
+                    .font(Font.system(size: 20, weight: .regular, design: .default))
+            }
+            .buttonStyle(.plain)
+            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 3)
+            .padding(.bottom, 4)
+            .contentShape(Rectangle())
+            .tappable()
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.clear)
+        .opacity(state == .hidden ? 1 : 0)
+    }
+    
     private func hideNotiTimedEvent(delay: Int) {
         hideAnimWorkItem?.cancel()
         
@@ -150,6 +166,7 @@ internal struct EventLogList: View {
             if state == .closed {
                 withAnimation {
                     viewModel.hide()
+                    recentEvents.removeAll()
                 }
             }
         }
@@ -164,7 +181,8 @@ internal struct EventLogList: View {
         if state == .hidden {
             return -geoReader.size.height + geoReader.safeAreaInsets.top + 10
         }
-        return state == .closed ? -geoReader.size.height + heightForType(events.last?.type ?? .message) : 0
+        return 0
+        //return state == .closed ? -geoReader.size.height + heightForType(events.last?.type ?? .message) : 0
     }
     
     func heightForType(_ type: EventLogType) -> CGFloat {
@@ -199,14 +217,8 @@ internal struct EventLogList: View {
         .cornerRadius(16)
         .padding([.leading, .trailing], 16)
         .onTapGesture {
-            if state == .closed {
-                withAnimation {
-                    viewModel.state = .open
-                }
-            } else {
-                selectedEvent = event
-                sheetPresented = true
-            }
+            selectedEvent = event
+            sheetPresented = true
         }
         .tappable()
     }
