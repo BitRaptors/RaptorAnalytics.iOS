@@ -49,20 +49,21 @@ internal struct EventLogList: View {
 
     public var body: some View {
         ScrollViewReader { scReader in
-        GeometryReader { geometryReader in
-            switch state {
-            case .closed:
-                VStack {
-                    ForEach(viewModel.eventsCurrentlyShown) { event in
-                        listItem(event: event)
-                    }
-                    notiIndicator(scrollReader: scReader)
-                        .opacity(viewModel.eventsCurrentlyShown.count == 0 ? 1 : 0)
-                }.animation(.easeInOut, value: viewModel.eventsCurrentlyShown)
-            case .open:
+            GeometryReader { geometryReader in
+                switch state {
+                case .closed:
+                    VStack {
+                        ForEach(viewModel.eventsCurrentlyShown) { event in
+                            listItem(event: event)
+                        }
+                        notiIndicator(scrollReader: scReader)
+                            .opacity(viewModel.eventsCurrentlyShown.count == 0 ? 1 : 0)
+                    }.animation(.easeInOut, value: viewModel.eventsCurrentlyShown)
+                case .open:
                     ScrollView(showsIndicators: false) {
                         VStack {
                             Spacer()
+                                .frame(minHeight: 0, maxHeight: .infinity)
                             LazyVStack {
                                 ForEach(events) { event in
                                     listItem(event: event)
@@ -93,7 +94,11 @@ internal struct EventLogList: View {
                         .onReceive(eventPublisher) { eventLogs in
                             events = eventLogs
                             if let log = eventLogs.last {
-                                scReader.scrollTo(log.id)
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    withAnimation {
+                                        scReader.scrollTo(log.id)
+                                    }
+                                }
                             }
                         }
                 }
@@ -109,10 +114,11 @@ internal struct EventLogList: View {
             EventLogDetail(event: $selectedEvent, presented: $sheetPresented)
         }
     }
+
     let bottomSpacerId = "bottomkurva"
-    
+
     @ViewBuilder
-    private func notiIndicator(scrollReader:ScrollViewProxy) -> some View {
+    private func notiIndicator(scrollReader: ScrollViewProxy) -> some View {
         VStack {
             Button {
                 withAnimation {
@@ -140,7 +146,6 @@ internal struct EventLogList: View {
         .frame(maxWidth: .infinity)
         .background(Color.clear)
     }
-
 
     @ViewBuilder
     private func listItem(event: EventLogData) -> some View {
