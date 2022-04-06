@@ -75,6 +75,7 @@ internal struct EventLogList: View {
                         .frame(minHeight: geometryReader.size.height)
                         .animation(.easeInOut, value: events)
                     }.background(AnyShapeStyle(.ultraThinMaterial))
+                        .tappable()
                         .overlay(alignment: .bottomTrailing) {
                             Button {
                                 withAnimation {
