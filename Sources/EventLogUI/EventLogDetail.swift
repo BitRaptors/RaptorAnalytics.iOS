@@ -75,7 +75,7 @@ internal struct EventLogDetail: View {
             .background(Circle().fill(.gray))
             .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 3)
             .padding(.trailing, 16)
-            //.tappable()
+            .tappable()
         }
     }
     
